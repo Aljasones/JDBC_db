@@ -8,7 +8,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+
 public class JdbcTemplate {
+    private <R> R executeInternal(String url, String sql, PreparedStatementExecutor<R> executor){
+        try (
+                Connection connection = DriverManager.getConnection(url);
+                PreparedStatement statement = connection.prepareStatement(sql);
+        ) {
+            return executor.execute(statement);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new DataStoreException(e);
+
+        }
+    }
 
     public <T> Optional<T> executeQueryForObject(
             String url,
@@ -16,12 +29,10 @@ public class JdbcTemplate {
             PreparedStatementSetter preparedStatementSetter,
             RowMapper<T> mapper
     ) {
-        try (
-                Connection connection = DriverManager.getConnection(url);
-                PreparedStatement statement = connection.prepareStatement(sql);
-        ) {
+        return executeInternal(url, sql, stmt -> {
+
             try (ResultSet resultSet = preparedStatementSetter
-                    .setValues(statement)
+                    .setValues(stmt)
                     .executeQuery();) {
 
                 if (resultSet.next()) {
@@ -31,10 +42,7 @@ public class JdbcTemplate {
             }
 //            TODO: set id in burger (return from db)
 
-        } catch (SQLException e) {
-            e.printStackTrace();
-            throw new DataStoreException(e);
-        }
+        });
     }
 
     public <T> List<T> executeQuery(
@@ -43,12 +51,9 @@ public class JdbcTemplate {
               PreparedStatementSetter preparedStatementSetter,
                RowMapper<T> mapper
     ) {
-        try (
-                Connection connection = DriverManager.getConnection(url);
-                PreparedStatement statement = connection.prepareStatement(sql);
-        ) {
+        return executeInternal(url, sql, stmt -> {
             try (ResultSet resultSet = preparedStatementSetter
-                    .setValues(statement)
+                    .setValues(stmt)
                     .executeQuery();) {
                 List<T> result = new ArrayList<>();
                 while (resultSet.next()) {
@@ -56,15 +61,13 @@ public class JdbcTemplate {
                 }
                 return result;
             }
+        });
+    }
 //            TODO: set id in burger (return from db)
 
 
 
-        } catch (SQLException e) {
-            e.printStackTrace();
-            throw new DataStoreException(e);
-        }
-    }
+
 
 
 
